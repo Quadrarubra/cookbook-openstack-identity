@@ -12,7 +12,7 @@ SUSE_OPTS = {
 }
 REDHAT_OPTS = {
   platform: 'redhat',
-  version: '7.0',
+  version: '7.1',
   log_level: LOG_LEVEL
 }
 UBUNTU_OPTS = {
@@ -35,6 +35,8 @@ end
 
 shared_context 'identity_stubs' do
   before do
+    allow_any_instance_of(Chef::Recipe).to receive(:rabbit_servers)
+      .and_return('rabbit_servers_value')
     allow_any_instance_of(Chef::Recipe).to receive(:memcached_servers)
       .and_return([])
     allow_any_instance_of(Chef::Recipe).to receive(:get_password)
@@ -43,6 +45,9 @@ shared_context 'identity_stubs' do
     allow_any_instance_of(Chef::Recipe).to receive(:get_password)
       .with('user', anything)
       .and_return('')
+    allow_any_instance_of(Chef::Recipe).to receive(:get_password)
+      .with('user', 'guest')
+      .and_return('guest')
     allow_any_instance_of(Chef::Recipe).to receive(:get_password)
       .with('user', 'user1')
       .and_return('secret1')

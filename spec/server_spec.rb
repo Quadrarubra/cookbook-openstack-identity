@@ -5,7 +5,7 @@ require_relative 'spec_helper'
 
 describe 'openstack-identity::server' do
   describe 'ubuntu' do
-    let(:runner) { ChefSpec::Runner.new(UBUNTU_OPTS) }
+    let(:runner) { ChefSpec::SoloRunner.new(UBUNTU_OPTS) }
     let(:node) { runner.node }
     let(:chef_run) do
       node.set_unless['openstack']['endpoints']['identity-bind'] = {
@@ -47,20 +47,20 @@ describe 'openstack-identity::server' do
     end
 
     it 'upgrades mysql python packages' do
-      expect(chef_run).to upgrade_package('python-mysqldb')
+      expect(chef_run).to upgrade_package('identity cookbook package python-mysqldb')
     end
 
     it 'upgrades postgresql python packages if explicitly told' do
       node.set['openstack']['db']['identity']['service_type'] = 'postgresql'
-      expect(chef_run).to upgrade_package('python-psycopg2')
+      expect(chef_run).to upgrade_package('identity cookbook package python-psycopg2')
     end
 
     it 'upgrades memcache python packages' do
-      expect(chef_run).to upgrade_package('python-memcache')
+      expect(chef_run).to upgrade_package('identity cookbook package python-memcache')
     end
 
     it 'upgrades keystone packages' do
-      expect(chef_run).to upgrade_package('keystone')
+      expect(chef_run).to upgrade_package('identity cookbook package keystone')
     end
 
     it 'starts keystone on boot' do
@@ -377,6 +377,51 @@ describe 'openstack-identity::server' do
         end
       end
 
+      describe '[eventlet_server_ssl] section' do
+        opts = {
+            enable: 'True',
+            certfile: '/etc/keystone/ssl/certs/sslcert.pem',
+            keyfile: '/etc/keystone/ssl/private/sslkey.pem',
+            ca_certs: '/etc/keystone/ssl/certs/sslca.pem',
+            cert_required: 'false'
+        }
+        describe 'with ssl enabled' do
+          before do
+            node.set['openstack']['identity']['ssl']['enabled'] = true
+            node.set['openstack']['identity']['ssl']['basedir'] = '/etc/keystone/ssl'
+          end
+          describe 'with client cert not required' do
+            it 'configures ssl options without client certificate' do
+              opts.each do |key, val|
+                r = line_regexp("#{key} = #{val}")
+                expect(chef_run).to render_config_file(path).with_section_content('eventlet_server_ssl', r)
+              end
+            end
+          end
+          describe 'with client cert required' do
+            before do
+              node.set['openstack']['identity']['ssl']['cert_required'] = true
+              opts['cert_required'.to_sym] = 'true'
+            end
+            it 'configures ssl options with client certificate' do
+              opts.each do |key, val|
+                r = line_regexp("#{key} = #{val}")
+                expect(chef_run).to render_config_file(path).with_section_content('eventlet_server_ssl', r)
+              end
+            end
+          end
+        end
+
+        describe 'without ssl disabled' do
+          before { node.set['openstack']['identity']['ssl']['enabled'] = false }
+          it 'does not configure ssl options' do
+            opts.each do |key, val|
+              expect(chef_run).not_to render_config_file(path).with_section_content('eventlet_server_ssl', /^#{key} = /)
+            end
+          end
+        end
+      end
+
       describe '[saml] section' do
         describe 'saml attributes' do
           saml_default_attrs = %w(assertion_expiration_time=3600
@@ -518,12 +563,12 @@ describe 'openstack-identity::server' do
 
       it 'has rpc_backend set for rabbit' do
         node.set['openstack']['mq']['service_type'] = 'rabbitmq'
-        expect(chef_run).to render_config_file(path).with_section_content('DEFAULT', /^rpc_backend=rabbit$/)
+        expect(chef_run).to render_config_file(path).with_section_content('DEFAULT', /^rpc_backend = rabbit$/)
       end
 
       it 'has rpc_backend set for qpid' do
         node.set['openstack']['mq']['service_type'] = 'qpid'
-        expect(chef_run).to render_config_file(path).with_section_content('DEFAULT', /^rpc_backend=qpid$/)
+        expect(chef_run).to render_config_file(path).with_section_content('DEFAULT', /^rpc_backend = qpid$/)
       end
 
       describe '[DEFAULT] section' do
@@ -555,6 +600,18 @@ describe 'openstack-identity::server' do
 
             expect(chef_run).to render_config_file(path).with_section_content('DEFAULT', log_conf)
             expect(chef_run).not_to render_config_file(path).with_section_content('DEFAULT', log_file)
+          end
+        end
+
+        it 'has default for oslo.messaging configuration' do
+          [/^notification_driver = messaging$/,
+           /^notification_topics = notifications$/,
+           /^rpc_thread_pool_size = 64$/,
+           /^rpc_response_timeout = 60$/,
+           /^rpc_backend = rabbit$/,
+           /^control_exchange = openstack$/
+          ].each do |line|
+            expect(chef_run).to render_config_file(path).with_section_content('DEFAULT', line)
           end
         end
 
@@ -777,6 +834,64 @@ describe 'openstack-identity::server' do
               expect(chef_run).not_to render_config_file(path).with_section_content('signing', /^#{key} = /)
             end
           end
+        end
+      end
+
+      describe '[oslo_messaging_qpid] section' do
+        it 'has defaults for oslo_messaging_qpid section' do
+          node.set['openstack']['mq']['service_type'] = 'qpid'
+          [/^amqp_durable_queues = false$/,
+           /^amqp_auto_delete = false$/,
+           /^rpc_conn_pool_size = 30$/,
+           /^qpid_hostname = 127.0.0.1$/,
+           /^qpid_port = 5672$/,
+           /^qpid_username = guest$/,
+           /^qpid_password = guest$/,
+           /^qpid_sasl_mechanisms = $/,
+           /^qpid_heartbeat = 60$/,
+           /^qpid_protocol = tcp$/,
+           /^qpid_tcp_nodelay = true$/,
+           /^qpid_topology_version = 1$/
+          ].each do |line|
+            expect(chef_run).to render_config_file(path).with_section_content('oslo_messaging_qpid', line)
+          end
+        end
+      end
+
+      describe '[oslo_messaging_rabbit] section' do
+        it 'has defaults for oslo_messaging_rabbit section' do
+          [/^amqp_durable_queues = false$/,
+           /^amqp_auto_delete = false$/,
+           /^rpc_conn_pool_size = 30$/,
+           /^rabbit_host = 127.0.0.1$/,
+           /^rabbit_port = 5672$/,
+           /^rabbit_use_ssl = false$/,
+           /^rabbit_userid = guest$/,
+           /^rabbit_password = guest$/,
+           /^rabbit_virtual_host = \/$/
+          ].each do |line|
+            expect(chef_run).to render_config_file(path).with_section_content('oslo_messaging_rabbit', line)
+          end
+        end
+        it 'has defaults for oslo_messaging_rabbit section with ha' do
+          node.set['openstack']['mq']['identity']['rabbit']['ha'] = true
+          [/^amqp_durable_queues = false$/,
+           /^amqp_auto_delete = false$/,
+           /^rpc_conn_pool_size = 30$/,
+           /^rabbit_hosts = rabbit_servers_value$/,
+           /^rabbit_use_ssl = false$/,
+           /^rabbit_userid = guest$/,
+           /^rabbit_password = guest$/,
+           /^rabbit_virtual_host = \/$/,
+           /^rabbit_ha_queues = true$/
+          ].each do |line|
+            expect(chef_run).to render_config_file(path).with_section_content('oslo_messaging_rabbit', line)
+          end
+        end
+        it 'has komdefaults for oslo_messaging_rabbit section with ha' do
+          node.set['openstack']['mq']['identity']['rabbit']['use_ssl'] = true
+          node.set['openstack']['mq']['identity']['rabbit']['kombu_ssl_version'] = 'ssl_version'
+          expect(chef_run).to render_config_file(path).with_section_content('oslo_messaging_rabbit', /^kombu_ssl_version = ssl_version$/)
         end
       end
     end
