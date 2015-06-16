@@ -782,6 +782,12 @@ qpid_topology_version = <%= node['openstack']['mq']['identity']['qpid']['topolog
 # From oslo.messaging
 #
 
+# Number of seconds after which the Rabbit broker is considered down if heartbeat's keep-alive fails (0 disable the heartbeat)
+heartbeat_timeout_threshold=<%= node['openstack']['mq']['identity']['rabbit']['heartbeat_timeout_threshold'] %>
+
+# How often times during the heartbeat_timeout_threshold we check the heartbeat
+heartbeat_rate=<%= node['openstack']['mq']['identity']['rabbit']['heartbeat_rate'] %>
+
 # Use durable queues in AMQP. (boolean value)
 # Deprecated group/name - [DEFAULT]/rabbit_durable_queues
 #amqp_durable_queues = false
@@ -848,6 +854,13 @@ rabbit_password = <%= @mq_password %>
 # Deprecated group/name - [DEFAULT]/rabbit_virtual_host
 #rabbit_virtual_host = /
 rabbit_virtual_host = <%= node["openstack"]["mq"]["identity"]["rabbit"]["vhost"] %>
+
+# Maximum retries with trying to connect to RabbitMQ
+# (the default of 0 implies an infinite retry count)
+rabbit_max_retries = <%= node["openstack"]["mq"]["identity"]["rabbit"]["rabbit_max_retries"] %>
+
+# RabbitMQ connection retry interval
+rabbit_retry_interval = <%= node["openstack"]["mq"]["identity"]["rabbit"]["rabbit_retry_interval"] %>
 <% end -%>
 
 [oslo_middleware]

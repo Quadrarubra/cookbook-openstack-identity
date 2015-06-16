@@ -40,10 +40,10 @@ def generate_admin_creds(resource)
   identity_endpoint = resource.identity_endpoint
   identity_endpoint = endpoint('identity-admin').to_s unless identity_endpoint
   {
-      'OS_USERNAME' => resource.admin_user,
-      'OS_PASSWORD' => resource.admin_pass,
-      'OS_TENANT_NAME' => resource.admin_tenant_name,
-      'OS_AUTH_URL' => identity_endpoint
+    'OS_USERNAME' => resource.admin_user,
+    'OS_PASSWORD' => resource.admin_pass,
+    'OS_TENANT_NAME' => resource.admin_tenant_name,
+    'OS_AUTH_URL' => identity_endpoint
   }
 end
 
@@ -53,10 +53,10 @@ def generate_user_creds(resource)
   identity_endpoint = resource.identity_endpoint
   identity_endpoint = endpoint('identity-api').to_s unless identity_endpoint
   {
-      'OS_USERNAME' => resource.user_name,
-      'OS_PASSWORD' => resource.user_pass,
-      'OS_TENANT_NAME' => resource.tenant_name,
-      'OS_AUTH_URL' => identity_endpoint
+    'OS_USERNAME' => resource.user_name,
+    'OS_PASSWORD' => resource.user_pass,
+    'OS_TENANT_NAME' => resource.tenant_name,
+    'OS_AUTH_URL' => identity_endpoint
   }
 end
 
@@ -252,8 +252,7 @@ action :create_user do
     tenant_uuid = identity_uuid new_resource, 'tenant', 'name', new_resource.tenant_name
     fail "Unable to find tenant '#{new_resource.tenant_name}'" unless tenant_uuid
 
-    output = identity_command(new_resource, 'user-list',
-                              'tenant-id' => tenant_uuid)
+    output = identity_command(new_resource, 'user-list')
     users = prettytable_to_array output
     user_found = false
     users.each do |user|
@@ -261,7 +260,7 @@ action :create_user do
     end
 
     if user_found
-      Chef::Log.info("User '#{new_resource.user_name}' already exists for tenant '#{new_resource.tenant_name}'")
+      Chef::Log.info("User '#{new_resource.user_name}' already exists")
       begin
         # Check if password is already updated by getting a token
         identity_command(new_resource, 'token-get', {}, 'user')
