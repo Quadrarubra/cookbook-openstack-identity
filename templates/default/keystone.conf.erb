@@ -136,6 +136,12 @@ list_limit=<%= node['openstack']['identity']['assignment']['list_limit'] %>
 # From keystone
 #
 
+# The external (REMOTE_USER) auth plugin module. (String value)
+external = <%= node['openstack']['identity']['auth']['external'] %>
+
+# Default auth methods. (List value)
+methods = <%= node['openstack']['identity']['auth']['methods'] %>
+
 [cache]
 
 #
@@ -313,6 +319,29 @@ list_limit=<%= node['openstack']['identity']['identity']['list_limit'] %>
 #
 # From keystone
 #
+
+# Keystone Identity Mapping backend driver. (string value)
+driver = <%= node['openstack']['identity']['identity_mapping']['driver'] %>
+
+# Public ID generator for user and group entities in the keystone.identity.id_generator namespace.
+# The Keystone identity mapper only supports generators that produce no more than 64 characters.
+# (string value)
+generator = <%= node['openstack']['identity']['identity_mapping']['generator'] %>
+
+# The format of user and group IDs changed in Juno for backends that do not
+# generate UUIDs (e.g. LDAP), with keystone providing a hash mapping to the
+# underlying attribute in LDAP. By default this mapping is disabled, which
+# ensures that existing IDs will not change. Even when the mapping is enabled
+# by using domain specific drivers, any users and groups from the default
+# domain being handled by LDAP will still not be mapped to ensure their IDs
+# remain backward compatible. Setting this value to False will enable the
+# mapping for even the default LDAP driver. It is only safe to do this if you
+# do not already have assignments for users and groups from the default LDAP
+# domain, and it is acceptable for Keystone to provide the different IDs to
+# clients than it did previously.  Typically this means that the only time you
+# can set this value to False is when configuring a fresh installation.
+# (boolean value)
+backward_compatible_ids = <%= node['openstack']['identity']['identity_mapping']['backward_compatible_ids'] %>
 
 [kvs]
 
@@ -640,6 +669,41 @@ group_allow_update = <%= @ldap["group_allow_update"] %>
 #group_allow_delete = true
 group_allow_delete = <%= @ldap["group_allow_delete"] %>
 
+<% if @ldap['use_pool'] -%>
+# Enable LDAP connection pooling. (boolean value)
+use_pool = true
+
+# Connection pool size. (integer value)
+pool_size = <%= @ldap['pool_size'] %>
+
+# Maximum count of reconnect trials. (integer value)
+pool_retry_max = <%= @ldap['pool_retry_max'] %>
+
+# Time span in seconds to wait between two reconnect trials.
+# (floating point value)
+pool_retry_delay = <%= @ldap['pool_retry_delay'] %>
+
+# Connector timeout in seconds. Value -1 indicates indefinite
+# wait for response. (integer value)
+pool_connection_timeout = <%= @ldap['pool_connection_timeout'] %>
+
+# Connection lifetime in seconds. (integer value)
+pool_connection_lifetime = <%= @ldap['pool_connection_lifetime'] %>
+
+# Enable LDAP connection pooling for end user authentication.
+# If use_pool is disabled, then this setting is meaningless
+# and is not used at all. (boolean value)
+use_auth_pool = <%= @ldap['use_auth_pool'] %>
+
+# End user auth connection pool size. (integer value)
+auth_pool_size = <%= @ldap['auth_pool_size'] %>
+
+# End user auth connection lifetime in seconds. (integer
+# value)
+auth_pool_connection_lifetime = <%= @ldap['auth_pool_connection_lifetime'] %>
+<% end -%>
+
+
 # Enable TLS for communicating with LDAP servers. (boolean value)
 #use_tls = false
 <% if @ldap["use_tls"] -%>
@@ -803,13 +867,34 @@ amqp_auto_delete = <%= node['openstack']['mq']['identity']['auto_delete'] %>
 #rpc_conn_pool_size = 30
 rpc_conn_pool_size = <%= node["openstack"]["identity"]["rpc_conn_pool_size"] %>
 
-# SSL version to use (valid only if SSL enabled). Valid values are TLSv1 and
-# SSLv23. SSLv2, SSLv3, TLSv1_1, and TLSv1_2 may be available on some
-# distributions. (string value)
-# Deprecated group/name - [DEFAULT]/kombu_ssl_version
-#kombu_ssl_version =
-<% if node["openstack"]["mq"]["identity"]["rabbit"]["use_ssl"] && node["openstack"]["mq"]["identity"]["rabbit"]["kombu_ssl_version"] -%>
-kombu_ssl_version = <%= node["openstack"]["mq"]["identity"]["rabbit"]["kombu_ssl_version"] %>
+<% if node['openstack']['mq']['identity']['rabbit']['use_ssl'] -%>
+
+# Connect over SSL for RabbitMQ. (boolean value)
+rabbit_use_ssl=true
+
+<%   if node['openstack']['mq']['identity']['rabbit']['kombu_ssl_version'] -%>
+# SSL version to use (valid only if SSL enabled). valid values
+# are TLSv1 and SSLv23. SSLv2 and SSLv3 may be available on
+# some distributions. (string value)
+kombu_ssl_version=<%= node['openstack']['mq']['identity']['rabbit']['kombu_ssl_version'] %>
+<%   end -%>
+<%   if node['openstack']['mq']['identity']['rabbit']['kombu_ssl_keyfile'] -%>
+# SSL key file (valid only if SSL enabled)
+kombu_ssl_keyfile=<%= node['openstack']['mq']['identity']['rabbit']['kombu_ssl_keyfile'] %>
+<%   end -%>
+<%   if node['openstack']['mq']['identity']['rabbit']['kombu_ssl_certfile'] -%>
+# SSL cert file (valid only if SSL enabled)
+kombu_ssl_certfile=<%= node['openstack']['mq']['identity']['rabbit']['kombu_ssl_certfile'] %>
+<%   end -%>
+<%   if node['openstack']['mq']['identity']['rabbit']['kombu_ssl_ca_certs'] -%>
+# SSL certification authority file (valid only if SSL enabled)
+kombu_ssl_ca_certs=<%= node['openstack']['mq']['identity']['rabbit']['kombu_ssl_ca_certs'] %>
+<%   end -%>
+# How long to wait before reconnecting in response to an AMQP consumer cancel notification
+kombu_reconnect_delay=<%= node['openstack']['mq']['identity']['rabbit']['kombu_reconnect_delay'] %>
+# How long to wait before considering a reconnect attempt to have failed.
+# This value should not be longer than rpc_response_timeout
+kombu_reconnect_timeout=<%= node['openstack']['mq']['identity']['rabbit']['kombu_reconnect_timeout'] %>
 <% end -%>
 
 <% if node["openstack"]["mq"]["identity"]["rabbit"]["ha"] %>
@@ -834,11 +919,6 @@ rabbit_host = <%= node["openstack"]["mq"]["identity"]["rabbit"]["host"] %>
 #rabbit_port = 5672
 rabbit_port = <%= node["openstack"]["mq"]["identity"]["rabbit"]["port"] %>
 <% end -%>
-
-# Connect over SSL for RabbitMQ. (boolean value)
-# Deprecated group/name - [DEFAULT]/rabbit_use_ssl
-#rabbit_use_ssl = false
-rabbit_use_ssl = <%= node["openstack"]["mq"]["identity"]["rabbit"]["use_ssl"] %>
 
 # The RabbitMQ userid. (string value)
 # Deprecated group/name - [DEFAULT]/rabbit_userid

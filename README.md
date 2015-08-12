@@ -26,7 +26,7 @@ client
 Installs the keystone client packages
 
 
-server
+server (deprecated, will be removed in M release)
 ------
 
 Installs and Configures Keystone Service
@@ -34,6 +34,17 @@ Installs and Configures Keystone Service
 ```json
 "run_list": [
     "recipe[openstack-identity::server]"
+]
+```
+
+server-apache
+-------------
+
+Installs and Configures Keystone Service under Apache
+
+```json
+"run_list": [
+    "recipe[openstack-identity::server-apache]"
 ]
 ```
 
@@ -266,6 +277,16 @@ Please refer to the Common cookbook for more attributes.
 * `openstack['identity']['ldap']['tls_cacertfile']` - Path to CA cert file (default: nil)
 * `openstack['identity']['ldap']['tls_cacertdir']` - Path to CA cert directory (default: nil)
 * `openstack['identity']['ldap']['tls_req_cert']` - CA cert check ('demand', 'allow' or 'never', default: 'demand')
+* `openstack['identity']['ldap']['use_pool']` - Enable LDAP connection pool
+* `openstack['identity']['ldap']['pool_size']` - Connection pool size
+* `openstack['identity']['ldap']['pool_retry_max']` - Maximum count of reconnect trials
+* `openstack['identity']['ldap']['pool_retry_delay']` - Time span in seconds to wait between two reconnect trials (floating point value)
+* `openstack['identity']['ldap']['pool_connection_timeout']` - Connector timeout in seconds. Value -1 indicates indefinite
+* `openstack['identity']['ldap']['pool_connection_lifetime']` - Connection lifetime in seconds.(integer value)
+* `openstack['identity']['ldap']['use_auth_pool']` - Enable LDAP connection pooling for end user authentication
+* `openstack['identity']['ldap']['auth_pool_size']` - End user auth connection pool size. (integer value)
+* `openstack['identity']['ldap']['auth_pool_connection_lifetime']` -  End user auth connection lifetime in seconds. (integervalue)
+
 * `openstack['identity']['misc_keystone']` - **Array of strings to be added to keystone.conf**
 * `openstack['identity']['list_limit']` - Maximum number of entities that will be returned in a collection
 * `openstack['identity']['assignment']['list_limit']` - Maximum number of entities that will be returned in a assignment collection

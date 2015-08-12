@@ -118,6 +118,15 @@ default['openstack']['identity']['identity']['domain_specific_drivers_enabled'] 
 # set to true. (string value)
 default['openstack']['identity']['identity']['domain_config_dir'] = '/etc/keystone/domains'
 
+# Keystone Identity Mapping attributes
+# # Keystone Identity Mapping backend driver, default is sql.
+default['openstack']['identity']['identity_mapping']['driver'] = 'keystone.identity.mapping_backends.sql.Mapping'
+# Public ID generator for user and group entities, default is sha256.
+default['openstack']['identity']['identity_mapping']['generator'] = 'keystone.identity.id_generators.sha256.Generator'
+# Setting this value to True makes that any user and group from default domain being handled by LDAP will still not be
+# mapped to ensure their IDs remain backward compatible. You can only set it to False when configuring a fresh installation.
+default['openstack']['identity']['identity_mapping']['backward_compatible_ids'] = 'True'
+
 default['openstack']['identity']['admin_user'] = 'admin'
 default['openstack']['identity']['admin_tenant_name'] = 'admin'
 
@@ -144,6 +153,13 @@ default['openstack']['identity']['ssl']['certfile'] = "#{node['openstack']['iden
 default['openstack']['identity']['ssl']['keyfile'] = "#{node['openstack']['identity']['ssl']['basedir']}/private/sslkey.pem"
 # Path of the CA cert file for SSL.
 default['openstack']['identity']['ssl']['ca_certs'] = "#{node['openstack']['identity']['ssl']['basedir']}/certs/sslca.pem"
+# Path of the CA cert files for SSL (Apache)
+default['openstack']['identity']['ssl']['ca_certs_path'] = "#{node['openstack']['identity']['ssl']['basedir']}/certs/"
+# Protocol for SSL (Apache)
+default['openstack']['identity']['ssl']['protocol'] = 'All -SSLv2 -SSLv3'
+# Which ciphers to use with the SSL/TLS protocol (Apache)
+# Example: 'RSA:HIGH:MEDIUM:!LOW:!kEDH:!aNULL:!ADH:!eNULL:!EXP:!SSLv2:!SEED:!CAMELLIA:!PSK!RC4:!RC4-MD5:!RC4-SHA'
+default['openstack']['identity']['ssl']['ciphers'] = nil
 
 # Security Assertion Markup Language (SAML)
 
@@ -261,6 +277,12 @@ default['openstack']['identity']['catalog']['list_limit'] = nil
 # policy collection. (integer value)
 default['openstack']['identity']['policy']['list_limit'] = nil
 
+# The authorization configuration options
+# The external (REMOTE_USER) auth plugin module. (String value)
+default['openstack']['identity']['auth']['external'] = 'keystone.auth.plugins.external.DefaultDomain'
+# Default auth methods. (List value)
+default['openstack']['identity']['auth']['methods'] = 'external, password, token, oauth1'
+
 # LDAP backend general settings
 default['openstack']['identity']['ldap']['url'] = 'ldap://localhost'
 default['openstack']['identity']['ldap']['user'] = 'dc=Manager,dc=example,dc=com'
@@ -338,6 +360,17 @@ default['openstack']['identity']['ldap']['group_allow_create'] = true
 default['openstack']['identity']['ldap']['group_allow_update'] = true
 default['openstack']['identity']['ldap']['group_allow_delete'] = true
 
+# LDAP connection pool settings
+default['openstack']['identity']['ldap']['use_pool'] = false
+default['openstack']['identity']['ldap']['pool_size'] = 10
+default['openstack']['identity']['ldap']['pool_retry_max'] = 3
+default['openstack']['identity']['ldap']['pool_retry_delay'] = 0.1
+default['openstack']['identity']['ldap']['pool_connection_timeout'] = 3
+default['openstack']['identity']['ldap']['pool_connection_lifetime'] = 600
+default['openstack']['identity']['ldap']['use_auth_pool'] = false
+default['openstack']['identity']['ldap']['auth_pool_size'] = 100
+default['openstack']['identity']['ldap']['auth_pool_connection_lifetime'] = 60
+
 # Token flushing cronjob
 default['openstack']['identity']['token_flush_cron']['enabled'] = node['openstack']['identity']['token']['backend'] == 'sql'
 default['openstack']['identity']['token_flush_cron']['log_file'] = '/var/log/keystone/token-flush.log'
@@ -362,6 +395,7 @@ when 'fedora', 'rhel' # :pragma-foodcritic: ~FC024 - won't fix this
     'keystone_client_packages' => ['python-keystoneclient'],
     'keystone_service' => 'openstack-keystone',
     'keystone_process_name' => 'keystone-all',
+    'keystone_wsgi_file' => '/usr/share/keystone/wsgi.py',
     'package_options' => ''
   }
 when 'suse'
@@ -373,6 +407,7 @@ when 'suse'
     'keystone_client_packages' => ['python-keystoneclient'],
     'keystone_service' => 'openstack-keystone',
     'keystone_process_name' => 'keystone-all',
+    'keystone_wsgi_file' => '/usr/share/keystone/wsgi.py',
     'package_options' => ''
   }
 when 'debian'
@@ -384,6 +419,7 @@ when 'debian'
     'keystone_client_packages' => ['python-keystoneclient'],
     'keystone_service' => 'keystone',
     'keystone_process_name' => 'keystone-all',
+    'keystone_wsgi_file' => '/usr/share/keystone/wsgi.py',
     'package_options' => "-o Dpkg::Options::='--force-confold' -o Dpkg::Options::='--force-confdef'"
   }
 end
