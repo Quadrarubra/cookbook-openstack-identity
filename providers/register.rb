@@ -40,10 +40,10 @@ def generate_admin_creds(resource)
   identity_endpoint = resource.identity_endpoint
   identity_endpoint = endpoint('identity-admin').to_s unless identity_endpoint
   {
-      'OS_USERNAME' => resource.admin_user,
-      'OS_PASSWORD' => resource.admin_pass,
-      'OS_TENANT_NAME' => resource.admin_tenant_name,
-      'OS_AUTH_URL' => identity_endpoint
+    'OS_USERNAME' => resource.admin_user,
+    'OS_PASSWORD' => resource.admin_pass,
+    'OS_TENANT_NAME' => resource.admin_tenant_name,
+    'OS_AUTH_URL' => identity_endpoint
   }
 end
 
@@ -53,10 +53,10 @@ def generate_user_creds(resource)
   identity_endpoint = resource.identity_endpoint
   identity_endpoint = endpoint('identity-api').to_s unless identity_endpoint
   {
-      'OS_USERNAME' => resource.user_name,
-      'OS_PASSWORD' => resource.user_pass,
-      'OS_TENANT_NAME' => resource.tenant_name,
-      'OS_AUTH_URL' => identity_endpoint
+    'OS_USERNAME' => resource.user_name,
+    'OS_PASSWORD' => resource.user_pass,
+    'OS_TENANT_NAME' => resource.tenant_name,
+    'OS_AUTH_URL' => identity_endpoint
   }
 end
 
@@ -114,6 +114,19 @@ end
 
 private
 
+def service_need_updated?(resource, args = {}, uuid_field = 'id')
+  begin
+    output = identity_command resource, 'service-list', args
+    output = prettytable_to_array(output)
+    return search_uuid(output, uuid_field, 'name' => resource.service_name).nil?
+  rescue RuntimeError => e
+    raise "Could not check service attributes for service: type => #{resource.service_type}, name => #{resource.service_name}. Error was #{e.message}"
+  end
+  false
+end
+
+private
+
 def endpoint_need_updated?(resource, key, value, args = {}, uuid_field = 'id')
   begin
     output = identity_command resource, 'endpoint-list', args
@@ -132,11 +145,18 @@ action :create_service do
   else
     begin
       service_uuid = identity_uuid new_resource, 'service', 'type', new_resource.service_type
-
+      need_updated = false
       if service_uuid
-        Chef::Log.info("Service Type '#{new_resource.service_type}' already exists.. Not creating.")
+        Chef::Log.info("Service Type '#{new_resource.service_type}' already exists..")
         Chef::Log.info("Service UUID: #{service_uuid}")
-      else
+        need_updated = service_need_updated? new_resource
+        if need_updated
+          Chef::Log.info("Service Type '#{new_resource.service_type}' needs to be updated, delete it first.")
+          identity_command(new_resource, 'service-delete',
+                           '' => service_uuid)
+        end
+      end
+      unless service_uuid && !need_updated
         identity_command(new_resource, 'service-create',
                          'type' => new_resource.service_type,
                          'name' => new_resource.service_name,
@@ -229,11 +249,8 @@ end
 action :create_user do
   begin
     new_resource.updated_by_last_action(false)
-    tenant_uuid = identity_uuid new_resource, 'tenant', 'name', new_resource.tenant_name
-    fail "Unable to find tenant '#{new_resource.tenant_name}'" unless tenant_uuid
 
-    output = identity_command(new_resource, 'user-list',
-                              'tenant-id' => tenant_uuid)
+    output = identity_command(new_resource, 'user-list')
     users = prettytable_to_array output
     user_found = false
     users.each do |user|
@@ -241,7 +258,7 @@ action :create_user do
     end
 
     if user_found
-      Chef::Log.info("User '#{new_resource.user_name}' already exists for tenant '#{new_resource.tenant_name}'")
+      Chef::Log.info("User '#{new_resource.user_name}' already exists")
       begin
         # Check if password is already updated by getting a token
         identity_command(new_resource, 'token-get', {}, 'user')
@@ -258,7 +275,7 @@ action :create_user do
 
     identity_command(new_resource, 'user-create',
                      'name' => new_resource.user_name,
-                     'tenant-id' => tenant_uuid,
+                     'tenant' => new_resource.tenant_name,
                      'pass' => new_resource.user_pass,
                      'enabled' => new_resource.user_enabled)
     Chef::Log.info("Created user '#{new_resource.user_name}' for tenant '#{new_resource.tenant_name}'")
@@ -271,26 +288,21 @@ end
 action :grant_role do
   begin
     new_resource.updated_by_last_action(false)
-    tenant_uuid = identity_uuid new_resource, 'tenant', 'name', new_resource.tenant_name
-    fail "Unable to find tenant '#{new_resource.tenant_name}'" unless tenant_uuid
-
-    user_uuid = identity_uuid new_resource, 'user', 'name', new_resource.user_name
-    fail "Unable to find user '#{new_resource.user_name}'" unless tenant_uuid
 
     role_uuid = identity_uuid new_resource, 'role', 'name', new_resource.role_name
     fail "Unable to find role '#{new_resource.role_name}'" unless role_uuid
 
     assigned_role_uuid = identity_uuid(new_resource, 'user-role', 'name',
                                        new_resource.role_name,
-                                       'tenant-id' => tenant_uuid,
-                                       'user-id' => user_uuid)
+                                       'tenant' => new_resource.tenant_name,
+                                       'user' => new_resource.user_name)
     if role_uuid == assigned_role_uuid
       Chef::Log.info("Role '#{new_resource.role_name}' already granted to User '#{new_resource.user_name}' in Tenant '#{new_resource.tenant_name}'")
     else
       identity_command(new_resource, 'user-role-add',
-                       'tenant-id' => tenant_uuid,
+                       'tenant' => new_resource.tenant_name,
                        'role-id' => role_uuid,
-                       'user-id' => user_uuid)
+                       'user' => new_resource.user_name)
       Chef::Log.info("Granted Role '#{new_resource.role_name}' to User '#{new_resource.user_name}' in Tenant '#{new_resource.tenant_name}'")
       new_resource.updated_by_last_action(true)
     end
@@ -308,7 +320,7 @@ action :create_ec2_credentials do
     user_uuid = identity_uuid(new_resource, 'user', 'name',
                               new_resource.user_name,
                               'tenant-id' => tenant_uuid)
-    fail "Unable to find user '#{new_resource.user_name}'" unless user_uuid
+    fail "Unable to find user '#{new_resource.user_name}' with tenant '#{new_resource.tenant_name}'" unless user_uuid
 
     # this is not really a uuid, but this will work nonetheless
     access = identity_uuid new_resource, 'ec2-credentials', 'tenant', new_resource.tenant_name, { 'user-id' => user_uuid }, 'access'

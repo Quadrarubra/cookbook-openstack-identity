@@ -5,7 +5,7 @@ require_relative 'spec_helper'
 
 describe 'openstack-identity::server' do
   describe 'suse' do
-    let(:runner) { ChefSpec::Runner.new(SUSE_OPTS) }
+    let(:runner) { ChefSpec::SoloRunner.new(SUSE_OPTS) }
     let(:node) { runner.node }
     let(:chef_run) { runner.converge(described_recipe) }
 
@@ -17,20 +17,20 @@ describe 'openstack-identity::server' do
     end
 
     it 'upgrades mysql python packages' do
-      expect(chef_run).to upgrade_package('python-mysql')
+      expect(chef_run).to upgrade_package('identity cookbook package python-mysql')
     end
 
     it 'upgrades postgresql python packages if explicitly told' do
       node.set['openstack']['db']['identity']['service_type'] = 'postgresql'
-      expect(chef_run).to upgrade_package('python-psycopg2')
+      expect(chef_run).to upgrade_package('identity cookbook package python-psycopg2')
     end
 
     it 'upgrades memcache python packages' do
-      expect(chef_run).to upgrade_package('python-python-memcached')
+      expect(chef_run).to upgrade_package('identity cookbook package python-python-memcached')
     end
 
     it 'upgrades keystone packages' do
-      expect(chef_run).to upgrade_package('openstack-keystone')
+      expect(chef_run).to upgrade_package('identity cookbook package openstack-keystone')
     end
 
     it 'starts keystone on boot' do

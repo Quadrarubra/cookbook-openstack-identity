@@ -1,11 +1,9 @@
 # encoding: UTF-8
 #
 # Cookbook Name:: openstack-identity
-# Recipe:: server
+# Recipe:: server-apache
 #
-# Copyright 2012, Rackspace US, Inc.
-# Copyright 2012-2013, Opscode, Inc.
-# Copyright 2013-2014 SUSE LINUX Products GmbH.
+# Copyright 2015, IBM Corp. Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the 'License');
 # you may not use this file except in compliance with the License.
@@ -59,19 +57,9 @@ platform_options['keystone_packages'].each do |pkg|
   end
 end
 
-execute 'Keystone: sleep' do
-  command "sleep #{node['openstack']['identity']['start_delay']}s"
-
-  action :nothing
-end
-
 service 'keystone' do
   service_name platform_options['keystone_service']
-  supports status: true, restart: true
-
-  action [:enable]
-
-  notifies :run, 'execute[Keystone: sleep]', :immediately
+  action [:stop, :disable]
 end
 
 directory '/etc/keystone' do
@@ -129,8 +117,6 @@ if node['openstack']['auth']['strategy'] == 'pki'
       owner node['openstack']['identity']['user']
       group node['openstack']['identity']['group']
       mode 00640
-
-      notifies :restart, 'service[keystone]', :delayed
     end
 
     remote_file node['openstack']['identity']['signing']['keyfile'] do
@@ -138,8 +124,6 @@ if node['openstack']['auth']['strategy'] == 'pki'
       owner node['openstack']['identity']['user']
       group node['openstack']['identity']['group']
       mode 00640
-
-      notifies :restart, 'service[keystone]', :delayed
     end
 
     remote_file node['openstack']['identity']['signing']['ca_certs'] do
@@ -147,8 +131,6 @@ if node['openstack']['auth']['strategy'] == 'pki'
       owner node['openstack']['identity']['user']
       group node['openstack']['identity']['group']
       mode 00640
-
-      notifies :restart, 'service[keystone]', :delayed
     end
   end
 end
@@ -206,7 +188,6 @@ if node['openstack']['identity']['pastefile_url']
     owner node['openstack']['identity']['user']
     group node['openstack']['identity']['group']
     mode 00644
-    notifies :restart, 'service[keystone]', :delayed
   end
 else
   template '/etc/keystone/keystone-paste.ini' do
@@ -214,7 +195,6 @@ else
     owner node['openstack']['identity']['user']
     group node['openstack']['identity']['group']
     mode 00644
-    notifies :restart, 'service[keystone]', :delayed
   end
 end
 
@@ -249,8 +229,6 @@ template '/etc/keystone/keystone.conf' do
     mq_service_type: mq_service_type,
     mq_password: mq_password
   )
-
-  notifies :restart, 'service[keystone]', :immediately
 end
 
 # populate the templated catlog, if you're using the templated catalog backend
@@ -273,7 +251,6 @@ template '/etc/keystone/default_catalog.templates' do
     uris: uris
   )
 
-  notifies :restart, 'service[keystone]', :immediately
   only_if { node['openstack']['identity']['catalog']['backend'] == 'templated' }
 end
 
@@ -298,4 +275,82 @@ cron 'keystone-manage-token-flush' do
   user node['openstack']['identity']['user']
   command "keystone-manage token_flush > #{log_file} 2>&1; "\
           "echo keystone-manage token_flush ran at $(/bin/date) with exit code $? >> #{log_file}"
+end
+
+#### Start of Apache specific work
+
+listen_addresses = node['apache']['listen_addresses'] - ['*'] + [bind_address, admin_bind_address]
+listen_ports = node['apache']['listen_ports'] - ['80'] + [identity_endpoint.port, identity_admin_endpoint.port]
+node.set['apache']['listen_addresses'] = listen_addresses.uniq
+node.set['apache']['listen_ports'] = listen_ports.uniq
+
+include_recipe 'apache2'
+include_recipe 'apache2::mod_wsgi'
+include_recipe 'apache2::mod_ssl' if node['openstack']['identity']['ssl']['enabled']
+
+keystone_apache_dir = "#{node['apache']['docroot_dir']}/keystone"
+directory keystone_apache_dir do
+  owner 'root'
+  group 'root'
+  mode 00755
+end
+
+server_entry_public = "#{keystone_apache_dir}/main"
+server_entry_admin = "#{keystone_apache_dir}/admin"
+
+# Note: Using lazy here as the wsgi file is not available until after
+# the keystone package is installed during execution phase.
+[server_entry_public, server_entry_admin].each do |server_entry|
+  file server_entry do
+    content lazy { IO.read(platform_options['keystone_wsgi_file']) }
+    owner 'root'
+    group 'root'
+    mode 00755
+  end
+end
+
+wsgi_apps = {
+  'public' => {
+    server_host: bind_address,
+    server_port: identity_endpoint.port,
+    server_entry: server_entry_public
+  },
+  'admin' => {
+    server_host: admin_bind_address,
+    server_port: identity_admin_endpoint.port,
+    server_entry: server_entry_admin
+  }
+}
+
+wsgi_apps.each do |app, opt|
+  web_app "keystone-#{app}" do
+    template 'wsgi-keystone.conf.erb'
+    server_host opt[:server_host]
+    server_port opt[:server_port]
+    server_entry opt[:server_entry]
+    server_suffix app
+    log_dir node['apache']['log_dir']
+    log_debug node['openstack']['identity']['debug']
+    user node['openstack']['identity']['user']
+    group node['openstack']['identity']['group']
+    use_ssl node['openstack']['identity']['ssl']['enabled']
+    cert_file node['openstack']['identity']['ssl']['certfile']
+    key_file node['openstack']['identity']['ssl']['keyfile']
+    ca_certs_path node['openstack']['identity']['ssl']['ca_certs_path']
+    cert_required node['openstack']['identity']['ssl']['cert_required']
+    protocol node['openstack']['identity']['ssl']['protocol']
+    ciphers node['openstack']['identity']['ssl']['ciphers']
+  end
+end
+
+execute 'Keystone: sleep' do
+  command "sleep #{node['openstack']['identity']['start_delay']}s"
+  action :nothing
+end
+
+# Hack until Apache cookbook has lwrp's for proper use of notify
+execute 'Keystone apache reload' do
+  command 'uname'
+  notifies :reload, 'service[apache2]', :immediately
+  notifies :run, 'execute[Keystone: sleep]', :immediately
 end

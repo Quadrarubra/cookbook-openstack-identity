@@ -1,7 +1,7 @@
 Description
 ===========
 
-This cookbook installs the OpenStack Identity Service **Keystone** as part of the OpenStack reference deployment Chef for OpenStack. The https://github.com/stackforge/openstack-chef-repo contains documentation for using this cookbook in the context of a full OpenStack deployment. Keystone is installed from packages, creating the default user, tenant, and roles. It also registers the identity service and identity endpoint.
+This cookbook installs the OpenStack Identity Service **Keystone** as part of the OpenStack reference deployment Chef for OpenStack. The https://github.com/openstack/openstack-chef-repo contains documentation for using this cookbook in the context of a full OpenStack deployment. Keystone is installed from packages, creating the default user, tenant, and roles. It also registers the identity service and identity endpoint.
 
 http://keystone.openstack.org/
 
@@ -26,7 +26,7 @@ client
 Installs the keystone client packages
 
 
-server
+server (deprecated, will be removed in M release)
 ------
 
 Installs and Configures Keystone Service
@@ -34,6 +34,17 @@ Installs and Configures Keystone Service
 ```json
 "run_list": [
     "recipe[openstack-identity::server]"
+]
+```
+
+server-apache
+-------------
+
+Installs and Configures Keystone Service under Apache
+
+```json
+"run_list": [
+    "recipe[openstack-identity::server-apache]"
 ]
 ```
 
@@ -266,6 +277,16 @@ Please refer to the Common cookbook for more attributes.
 * `openstack['identity']['ldap']['tls_cacertfile']` - Path to CA cert file (default: nil)
 * `openstack['identity']['ldap']['tls_cacertdir']` - Path to CA cert directory (default: nil)
 * `openstack['identity']['ldap']['tls_req_cert']` - CA cert check ('demand', 'allow' or 'never', default: 'demand')
+* `openstack['identity']['ldap']['use_pool']` - Enable LDAP connection pool
+* `openstack['identity']['ldap']['pool_size']` - Connection pool size
+* `openstack['identity']['ldap']['pool_retry_max']` - Maximum count of reconnect trials
+* `openstack['identity']['ldap']['pool_retry_delay']` - Time span in seconds to wait between two reconnect trials (floating point value)
+* `openstack['identity']['ldap']['pool_connection_timeout']` - Connector timeout in seconds. Value -1 indicates indefinite
+* `openstack['identity']['ldap']['pool_connection_lifetime']` - Connection lifetime in seconds.(integer value)
+* `openstack['identity']['ldap']['use_auth_pool']` - Enable LDAP connection pooling for end user authentication
+* `openstack['identity']['ldap']['auth_pool_size']` - End user auth connection pool size. (integer value)
+* `openstack['identity']['ldap']['auth_pool_connection_lifetime']` -  End user auth connection lifetime in seconds. (integervalue)
+
 * `openstack['identity']['misc_keystone']` - **Array of strings to be added to keystone.conf**
 * `openstack['identity']['list_limit']` - Maximum number of entities that will be returned in a collection
 * `openstack['identity']['assignment']['list_limit']` - Maximum number of entities that will be returned in a assignment collection
@@ -275,6 +296,12 @@ Please refer to the Common cookbook for more attributes.
 * `openstack['identity']['pipeline']['public_api']` - Pipeline of identity public api
 * `openstack['identity']['pipeline']['admin_api']` - Pipeline of identity admin api
 * `openstack['identity']['pipeline']['api_v3']` - Pipeline of identity V3 api
+* `openstack['identity']['ssl']['enabled']` - Enable HTTPS Keystone API endpoint. Default is false
+* `openstack['identity']['ssl']['cert_required']` - When SSL is enabled this flag is used to require client certificate. Default is false.
+* `openstack['identity']['ssl']['basedir']` - Path to Keystone SSL directory
+* `openstack['identity']['ssl']['certfile']`- Cert file location
+* `openstack['identity']['ssl']['keyfile']` - Key file location
+* `openstack['identity']['ssl']['ca_certs']` - Path to CA certificate file
 
 Most `openstack['identity']['ldap']` attributes map directly to the corresponding config options in keystone.conf's `[ldap]` backend.  They are primarily used when configuring `openstack['identity']['identity']['backend']` and/or `openstack["identity"]["assignment"]["backend"]` as `ldap` (both default to `sql`).
 
@@ -282,7 +309,6 @@ The `openstack['identity']['ldap']['use_tls']` option should not be used in conj
 
 If `openstack['identity']['ldap']['tls_cacertfile']` is set, `openstack['identity']['ldap']['tls_cacertdir']` will be ignored.  Set `openstack['identity']['ldap']['tls_cacertfile']` to `nil` if `openstack['identity']['ldap']['tls_cacertdir']` is desired.
 Values of `openstack['identity']['ldap']['tls_req_cert']` correspond to the standard options permitted by the TLS_REQCERT TLS option (`never` performs no validation of certs, `allow` performs some basic name checks but no thorough CA validation, `demand` requires the certificate chain to be valid for the connection to succeed).
-
 
 The following attributes are defined in attributes/default.rb of the common cookbook, but are documented here due to their relevance:
 
@@ -294,7 +320,8 @@ The following attributes are defined in attributes/default.rb of the common cook
 
 If the value of the 'bind_interface' attribute is non-nil, then the identity service will be bound to the first IP address on that interface.  If the value of the 'bind_interface' attribute is nil, then the identity service will be bound to the IP address specified in the host attribute.
 
-
+### SSL enabling
+To enable SSL on Keystone, a key and certficate must be created and installed on server running Keystone. The location of these files can be provided with the node attributes described above. Also, note that `openstack['endpoints']['identity-bind']['scheme']`, from openstack common cookbook, must be set to 'https' in order to enable SSL.
 
 ### Token flushing
 When managing tokens with an SQL backend the token database may grow unboundedly as new tokens are issued and expired
@@ -344,6 +371,7 @@ Author:: Sean Gallagher (<sean.gallagher@att.com>)
 Author:: Ionut Artarisi (<iartarisi@suse.cz>)
 Author:: Chen Zhiwei (zhiwchen@cn.ibm.com)
 Author:: Eric Zhou (zyouzhou@cn.ibm.com)
+Author:: Jan Klare (j.klare@x-ion.de)
 
 Copyright 2012, Rackspace US, Inc.
 Copyright 2012-2013, Opscode, Inc.

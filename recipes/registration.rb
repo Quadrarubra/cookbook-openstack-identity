@@ -42,7 +42,7 @@ admin_user = node['openstack']['identity']['admin_user']
 admin_pass = get_password 'user', node['openstack']['identity']['admin_user']
 # rubocop:enable UselessAssignment
 
-bootstrap_token = get_secret 'openstack_identity_bootstrap_token'
+bootstrap_token = get_password 'token', 'openstack_identity_bootstrap_token'
 
 # FIXME(galstrom21): This needs to be refactored, to not use a
 #   MultilineBlockChain.
@@ -66,7 +66,7 @@ end
 node['openstack']['identity']['users'].values.map do |user_info|
   user_info['roles'].keys
 end.flatten.uniq.each do |role_name| # rubocop: disable MultilineBlockChain
-  openstack_identity_register "Register '#{role_name.to_s}' Role" do
+  openstack_identity_register "Register '#{role_name}' Role" do
     auth_uri auth_uri
     bootstrap_token bootstrap_token
     role_name role_name
@@ -118,9 +118,9 @@ node.set['openstack']['identity']['adminURL'] = identity_admin_endpoint.to_s
 node.set['openstack']['identity']['internalURL'] = identity_internal_endpoint.to_s
 node.set['openstack']['identity']['publicURL'] = identity_public_endpoint.to_s
 
-Chef::Log.info "Keystone AdminURL: #{identity_admin_endpoint.to_s}"
-Chef::Log.info "Keystone InternalURL: #{identity_internal_endpoint.to_s}"
-Chef::Log.info "Keystone PublicURL: #{identity_public_endpoint.to_s}"
+Chef::Log.info "Keystone AdminURL: #{identity_admin_endpoint}"
+Chef::Log.info "Keystone InternalURL: #{identity_internal_endpoint}"
+Chef::Log.info "Keystone PublicURL: #{identity_public_endpoint}"
 
 openstack_identity_register 'Register Identity Endpoint' do
   auth_uri auth_uri

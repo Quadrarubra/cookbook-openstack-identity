@@ -2,10 +2,8 @@
 require_relative 'spec_helper'
 
 describe 'openstack-identity::client' do
-
   describe 'redhat' do
-
-    let(:runner) { ChefSpec::Runner.new(REDHAT_OPTS) }
+    let(:runner) { ChefSpec::SoloRunner.new(REDHAT_OPTS) }
     let(:node) { runner.node }
     let(:chef_run) do
       runner.converge(described_recipe)
