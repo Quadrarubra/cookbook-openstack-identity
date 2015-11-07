@@ -1143,6 +1143,11 @@ driver = keystone.token.persistence.backends.<%= node["openstack"]["identity"]["
 #hash_algorithm = md5
 hash_algorithm = <%= node["openstack"]["identity"]["token"]["hash_algorithm"] %>
 
+# (IntOpt) Request timeout value for communicating with Identity API server.
+#http_connect_timeout = None
+
+http_connect_timeout = <%= node["openstack"]["identity"]["token"]["http_connect_timeout"] %>
+
 [trust]
 
 #
