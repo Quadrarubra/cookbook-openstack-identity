@@ -18,7 +18,7 @@
     SSLEngine On
     SSLCertificateFile <%= @params[:cert_file] %>
     SSLCertificateKeyFile <%= @params[:key_file] %>
-    SSLCACertificatePath <%= @params[:ca_certs_path] %>
+    SSLCACertificateFile <%= @params[:ca_cert_file] %>
     SSLProtocol <%= @params[:protocol] %>
       <% if @params[:ciphers] -%>
     SSLCipherSuite <%= @params[:ciphers] %>

@@ -152,9 +152,9 @@ default['openstack']['identity']['ssl']['certfile'] = "#{node['openstack']['iden
 # Path of the keyfile for SSL.
 default['openstack']['identity']['ssl']['keyfile'] = "#{node['openstack']['identity']['ssl']['basedir']}/private/sslkey.pem"
 # Path of the CA cert file for SSL.
-default['openstack']['identity']['ssl']['ca_certs'] = "#{node['openstack']['identity']['ssl']['basedir']}/certs/sslca.pem"
-# Path of the CA cert files for SSL (Apache)
-default['openstack']['identity']['ssl']['ca_certs_path'] = "#{node['openstack']['identity']['ssl']['basedir']}/certs/"
+default['openstack']['identity']['ssl']['ca_certs'] = "#{node['openstack']['identity']['ssl']['basedir']}/cabundle.pem"
+# Path of the CA cert file for SSL (Apache)
+default['openstack']['identity']['ssl']['ca_cert_file'] = "#{node['openstack']['identity']['ssl']['basedir']}/cabundle.pem"
 # Protocol for SSL (Apache)
 default['openstack']['identity']['ssl']['protocol'] = 'All -SSLv2 -SSLv3'
 # Which ciphers to use with the SSL/TLS protocol (Apache)

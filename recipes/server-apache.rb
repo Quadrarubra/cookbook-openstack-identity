@@ -336,7 +336,7 @@ wsgi_apps.each do |app, opt|
     use_ssl node['openstack']['identity']['ssl']['enabled']
     cert_file node['openstack']['identity']['ssl']['certfile']
     key_file node['openstack']['identity']['ssl']['keyfile']
-    ca_certs_path node['openstack']['identity']['ssl']['ca_certs_path']
+    ca_cert_file node['openstack']['identity']['ssl']['ca_cert_file']
     cert_required node['openstack']['identity']['ssl']['cert_required']
     protocol node['openstack']['identity']['ssl']['protocol']
     ciphers node['openstack']['identity']['ssl']['ciphers']
