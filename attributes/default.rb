@@ -419,7 +419,7 @@ when 'debian'
     'keystone_client_packages' => ['python-keystoneclient'],
     'keystone_service' => 'keystone',
     'keystone_process_name' => 'keystone-all',
-    'keystone_wsgi_file' => '/usr/share/keystone/wsgi.py',
+    'keystone_wsgi_file' => '/usr/lib/python2.7/dist-packages/keystone/common/wsgi.py',
     'package_options' => "-o Dpkg::Options::='--force-confold' -o Dpkg::Options::='--force-confdef'"
   }
 end
