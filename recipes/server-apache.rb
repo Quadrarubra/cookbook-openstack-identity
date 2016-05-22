@@ -347,10 +347,3 @@ execute 'Keystone: sleep' do
   command "sleep #{node['openstack']['identity']['start_delay']}"
   action :nothing
 end
-
-# Hack until Apache cookbook has lwrp's for proper use of notify
-execute 'Keystone apache restart' do
-  command 'uname'
-  notifies :restart, 'service[apache2]', :immediately
-  notifies :run, 'execute[Keystone: sleep]', :immediately
-end
